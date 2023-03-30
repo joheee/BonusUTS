@@ -22,84 +22,97 @@ BH1750 lightMeter;
 #define PIN_SCL 33
 #define LED_COUNT 2
 
-// #define WIFI_SSID "johe"
-// #define WIFI_PASSWORD "johe"
-// #define MQTT_BROKER  "broker.emqx.io"
-// #define MQTT_TOPIC_PUBLISH   "esp32_johevin/2502036262/data"
-// #define MQTT_TOPIC_SUBSCRIBE "esp32_johevin/2502036262/cmd"  
+#define WIFI_SSID "eeBotak punya hp"
+#define WIFI_PASSWORD "satuperxdx"
+#define MQTT_BROKER  "broker.emqx.io"
+#define MQTT_TOPIC_PUBLISH   "esp32_johevin/2502036262/data"
+#define MQTT_TOPIC_SUBSCRIBE "esp32_johevin/2502036262/data"  
 
-// Ticker timerPublish;
-// char g_szDeviceId[30];
-// Ticker timerMqtt;
-// WiFiClient espClient;
-// PubSubClient mqtt(espClient);
-// boolean mqttConnect();
-// void WifiConnect();
+float globalHumidity = 0, globalTemp = 0, globalLux = 0;
 
-// void onPublishMessage()
-// {
-//   char szMsg[50];
-//   static int nMsgCount=0;
-//   sprintf(szMsg, "Hello from %s - %d", g_szDeviceId, nMsgCount++);
-//   mqtt.publish(MQTT_TOPIC_PUBLISH, szMsg);
-// }
+Ticker timerPublish;
+char g_szDeviceId[30];
+Ticker timerMqtt;
+WiFiClient espClient;
+PubSubClient mqtt(espClient);
+boolean mqttConnect();
+void WifiConnect();
 
-// void loop()
-// {
-//   mqtt.loop();
-// }
+void sendLux()
+{
+  char szMsg[50];
+  static int nMsgCount=0;
+  sprintf(szMsg, "Current Lux Value: %.2f ", globalLux);
+  mqtt.publish(MQTT_TOPIC_PUBLISH, szMsg);
+}
 
-// void mqttCallback(char* topic, byte* payload, unsigned int len) {
-//   Serial.print("Message arrived [");
-//   Serial.print(topic);
-//   Serial.print("]: ");
-//   Serial.write(payload, len);
-//   Serial.println();
-// }
-// boolean mqttConnect() {
-//   sprintf(g_szDeviceId, "esp32_%08X",(uint32_t)ESP.getEfuseMac());
-//   mqtt.setServer(MQTT_BROKER, 1883);
-//   mqtt.setCallback(mqttCallback);
-//   Serial.printf("Connecting to %s clientId: %s\n", MQTT_BROKER, g_szDeviceId);
+void sendTemp()
+{
+  char szMsg[50];
+  static int nMsgCount=0;
+  sprintf(szMsg, "Current Temp Value: %.2f ", globalTemp);
+  mqtt.publish(MQTT_TOPIC_PUBLISH, szMsg);
+}
 
-//   boolean fMqttConnected = false;
-//   for (int i=0; i<3 && !fMqttConnected; i++) {
-//     Serial.print("Connecting to mqtt broker...");
-//     fMqttConnected = mqtt.connect(g_szDeviceId);
-//     if (fMqttConnected == false) {
-//       Serial.print(" fail, rc=");
-//       Serial.println(mqtt.state());
-//       delay(1000);
-//     }
-//   }
+void sendHumidity()
+{
+  char szMsg[50];
+  static int nMsgCount=0;
+  sprintf(szMsg, "Current Humidity Value: %.2f ", globalHumidity);
+  mqtt.publish(MQTT_TOPIC_PUBLISH, szMsg);
+}
 
-//   if (fMqttConnected)
-//   {
-//     Serial.println(" success");
-//     mqtt.subscribe(MQTT_TOPIC_SUBSCRIBE);
-//     Serial.printf("Subcribe topic: %s\n", MQTT_TOPIC_SUBSCRIBE);
-//     onPublishMessage();
-//   }
-//   return mqtt.connected();
-// }
+void mqttCallback(char* topic, byte* payload, unsigned int len) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("]: ");
+  Serial.write(payload, len);
+  Serial.println();
+}
+boolean mqttConnect() {
+  sprintf(g_szDeviceId, "esp32_%08X",(uint32_t)ESP.getEfuseMac());
+  mqtt.setServer(MQTT_BROKER, 1883);
+  mqtt.setCallback(mqttCallback);
+  Serial.printf("Connecting to %s clientId: %s\n", MQTT_BROKER, g_szDeviceId);
 
-// void WifiConnect()
-// {
-//   WiFi.mode(WIFI_STA);
-//   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-//   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-//     Serial.println("Connection Failed! Rebooting...");
-//     delay(5000);
-//     ESP.restart();
-//   }  
-//   Serial.print("System connected with IP address: ");
-//   Serial.println(WiFi.localIP());
-//   Serial.printf("RSSI: %d\n", WiFi.RSSI());
-// }
+  boolean fMqttConnected = false;
+  for (int i=0; i<3 && !fMqttConnected; i++) {
+    Serial.print("Connecting to mqtt broker...");
+    fMqttConnected = mqtt.connect(g_szDeviceId);
+    if (fMqttConnected == false) {
+      Serial.print(" fail, rc=");
+      Serial.println(mqtt.state());
+      delay(1000);
+    }
+  }
 
+  if (fMqttConnected)
+  {
+    Serial.println(" success");
+    mqtt.subscribe(MQTT_TOPIC_SUBSCRIBE);
+    Serial.printf("Subcribe topic: %s\n", MQTT_TOPIC_SUBSCRIBE);
+    sendLux();
+    sendTemp();
+    sendHumidity();
+  }
+  return mqtt.connected();
+}
+
+void WifiConnect()
+{
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.println("Connection Failed! Rebooting...");
+    delay(5000);
+    ESP.restart();
+  }  
+  Serial.print("System connected with IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.printf("RSSI: %d\n", WiFi.RSSI());
+}
 
 // BOUNDARIES
-
 int nCount=0;
 
 void displayTempHumidity(float humidity, float temperature){
@@ -120,12 +133,15 @@ void displayTempHumidity(float humidity, float temperature){
       digitalWrite(LED_YELLOW, LOW);
       digitalWrite(LED_GREEN, HIGH);
     }
+    globalHumidity = humidity;
+    globalTemp = temperature; 
 }
 
 void displayLight(float lux){
   Serial.printf("Light: %.2f lx\n", lux);
   if(lux > 400) Serial.println("pintu kebuka bos");
   else Serial.println("pintu ketutup bang");
+    globalLux = lux;
 }
 
 void onReadDht(){
@@ -198,10 +214,17 @@ void setup() {
   pinMode(LED_YELLOW, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
 
-  // WifiConnect();
-  // mqttConnect();
-  // timerPublish.attach_ms(3000, onPublishMessage);
+  WifiConnect();
+  mqttConnect();
+  timerPublish.attach_ms(4000, sendLux);
+  timerPublish.attach_ms(5000, sendTemp);
+  timerPublish.attach_ms(6000, sendHumidity);
 
   xTaskCreatePinnedToCore(executeBH,"BH1750",2048,NULL,1,NULL,0);
   xTaskCreatePinnedToCore(executeDHT,"DHT",2048,NULL,2,NULL,0);
+}
+
+void loop()
+{
+  mqtt.loop();
 }
